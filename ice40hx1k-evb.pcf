@@ -1,0 +1,19 @@
+set_io clk100       15
+
+set_io led1         40
+set_io led2         51
+
+set_io uart_rx      1
+set_io uart_tx      2
+
+set_io vga_red[0]   18
+set_io vga_red[1]   19
+set_io vga_red[2]   24
+set_io vga_green[0] 25
+set_io vga_green[1] 26
+set_io vga_green[2] 27
+set_io vga_blue[0]  28
+set_io vga_blue[1]  29
+set_io vga_blue[2]  30
+set_io vga_hsync    33
+set_io vga_vsync    34
