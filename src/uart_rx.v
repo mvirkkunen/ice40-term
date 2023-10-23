@@ -1,16 +1,16 @@
 module uart_rx (
     input            clk100,
     input            rx,
-    output reg [8:0] data,
+    output reg [7:0] data,
     output reg       complete,
 );
     parameter [9:0] BAUD_DIVISOR = 868;
 
     reg rx_reg = 0;
 
-    reg [9:0] timer = 0;
     reg [7:0] buffer = 0;
     reg [3:0] state = 0;
+    reg [9:0] timer = 0;
 
     always @(posedge clk100) begin
         rx_reg <= rx;
@@ -33,7 +33,7 @@ module uart_rx (
                 timer <= timer - 1;
         end else if (2 <= state && state <= 9) begin
             if (timer == 0) begin
-                buffer <= (buffer >> 1) | (rx_reg << 7);
+                buffer <= (buffer >> 1) | (rx_reg[0] << 7);
                 state <= state + 1;
                 timer <= BAUD_DIVISOR;
             end else

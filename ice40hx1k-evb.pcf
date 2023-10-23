@@ -6,6 +6,9 @@ set_io led2         51
 set_io uart_rx      1
 set_io uart_tx      2
 
+set_io ps2_clk      37
+set_io ps2_dat      36
+
 set_io vga_red[0]   18
 set_io vga_red[1]   19
 set_io vga_red[2]   24

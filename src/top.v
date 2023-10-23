@@ -1,6 +1,9 @@
 module top (
     input        clk100,
     input        uart_rx,
+    output       uart_tx,
+    input        ps2_clk,
+    input        ps2_dat,
     output       led1,
     output       led2,
     output [2:0] vga_red,
@@ -23,6 +26,50 @@ module top (
     wire [7:0] uart_rx_data;
     wire uart_rx_complete;
 
+    reg [7:0] uart_tx_data;
+    reg uart_tx_start;
+    wire uart_tx_busy;
+
+    wire [7:0] ps2_data;
+    wire ps2_complete;
+
+    reg led = 0;
+
+    vga_text_mode mod_vga_text_mode (
+        .clk100(clk100),
+        .wr_en(wr_en),
+        .wr_addr(wr_addr),
+        .wr_data(wr_data),
+        .vga_red(vga_red),
+        .vga_green(vga_green),
+        .vga_blue(vga_blue),
+        .vga_hsync(vga_hsync),
+        .vga_vsync(vga_vsync),
+    );
+
+    uart_rx mod_uart_rx (
+        .clk100(clk100),
+        .rx(uart_rx),
+        .data(uart_rx_data),
+        .complete(uart_rx_complete),
+    );
+
+    uart_tx mod_uart_tx (
+        .clk100(clk100),
+        .tx(uart_tx),
+        .data(uart_tx_data),
+        .start(uart_tx_start),
+        .busy(uart_tx_busy),
+    );
+
+    ps2 ps2_mod (
+        .clk100(clk100),
+        .ps2_clk(ps2_clk),
+        .ps2_dat(ps2_dat),
+        .data(ps2_data),
+        .complete(ps2_complete),
+    );
+
     always @(posedge clk100) begin
         us_div <= us_div + 1;
         if (us_div == 100) begin
@@ -39,11 +86,23 @@ module top (
             end
         end
 
-        if (write == 1)
+        uart_tx_start <= 0;
+
+        /*if (ps2_complete) begin
+            uart_tx_data <= ps2_data;
+            uart_tx_start <= 1;
+            led <= !led;
+        end else if (uart_tx_start)
+            uart_tx_start <= 0;*/
+
+        if (write)
             write <= 0;
-        else if (wr_en == 1) begin
+        else if (wr_en) begin
             wr_en <= 0;
         end else if (uart_rx_complete) begin
+            uart_tx_data <= uart_rx_data;
+            uart_tx_start <= 1;
+
             if (uart_rx_data == "\n")
                 wr_row <= wr_row + 1;
             else if (uart_rx_data == "\r")
@@ -66,25 +125,6 @@ module top (
         end
     end
 
-    vga_text_mode mod_vga_text_mode (
-        .clk100(clk100),
-        .wr_en(wr_en),
-        .wr_addr(wr_addr),
-        .wr_data(wr_data),
-        .vga_red(vga_red),
-        .vga_green(vga_green),
-        .vga_blue(vga_blue),
-        .vga_hsync(vga_hsync),
-        .vga_vsync(vga_vsync),
-    );
-
-    uart_rx mod_uart_rx (
-        .clk100(clk100),
-        .rx(uart_rx),
-        .data(uart_rx_data),
-        .complete(uart_rx_complete)
-    );
-
-    assign led1 = 0;
-    assign led2 = 0;
+    assign led1 = led;
+    assign led2 = ps2_data;
 endmodule
