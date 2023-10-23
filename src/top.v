@@ -30,8 +30,8 @@ module top (
     reg uart_tx_start;
     wire uart_tx_busy;
 
-    wire [7:0] ps2_data;
-    wire ps2_complete;
+    wire [7:0] ps2_rx_data;
+    wire ps2_rx_complete;
 
     reg led = 0;
 
@@ -50,24 +50,24 @@ module top (
     uart_rx mod_uart_rx (
         .clk100(clk100),
         .rx(uart_rx),
-        .data(uart_rx_data),
-        .complete(uart_rx_complete),
+        .rx_data(uart_rx_data),
+        .rx_complete(uart_rx_complete),
     );
 
     uart_tx mod_uart_tx (
         .clk100(clk100),
         .tx(uart_tx),
-        .data(uart_tx_data),
-        .start(uart_tx_start),
-        .busy(uart_tx_busy),
+        .tx_data(uart_tx_data),
+        .tx_start(uart_tx_start),
+        .tx_busy(uart_tx_busy),
     );
 
     ps2 ps2_mod (
         .clk100(clk100),
-        .ps2_clk(ps2_clk),
-        .ps2_dat(ps2_dat),
+        .clk(ps2_clk),
         .data(ps2_data),
-        .complete(ps2_complete),
+        .rx_data(ps2_rx_data),
+        .rx_complete(ps2_rx_complete),
     );
 
     always @(posedge clk100) begin
@@ -88,8 +88,8 @@ module top (
 
         uart_tx_start <= 0;
 
-        /*if (ps2_complete) begin
-            uart_tx_data <= ps2_data;
+        /*if (ps2_rx_complete) begin
+            uart_tx_data <= ps2_rx_data;
             uart_tx_start <= 1;
             led <= !led;
         end else if (uart_tx_start)

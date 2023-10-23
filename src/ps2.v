@@ -1,39 +1,39 @@
 module ps2 (
     input            clk100,
-    input            ps2_clk,
-    input            ps2_dat,
-    output reg [7:0] data = 0,
-    output reg       complete = 0,
+    input            clk,
+    input            data,
+    output reg [7:0] rx_data = 0,
+    output reg       rx_complete = 0,
 );
     parameter [9:0] BAUD_DIVISOR = 868;
 
     reg clk_reg = 1;
-    reg dat_reg = 1;
+    reg data_reg = 1;
 
     reg [7:0] buffer = 0;
     reg [3:0] state = 0;
 
     always @(posedge clk100) begin
-        clk_reg <= ps2_clk;
-        dat_reg <= ps2_dat;
-        //complete <= 0;
+        clk_reg <= clk;
+        data_reg <= data;
+        rx_complete <= 0;
     end
 
     always @(negedge clk_reg) begin
         complete <= 1;
 
         if (state == 0) begin
-            if (!dat_reg)
+            if (!data_reg)
                 state <= 1;
         end else if (1 <= state && state <= 8) begin
-            buffer <= (buffer >> 1) | (dat_reg[0] << 7);
+            buffer <= (buffer >> 1) | (data_reg[0] << 7);
             state <= state + 1;
         end else if (state == 9) begin
             state <= 10;
         end else if (state == 10) begin
-            if (dat_reg) begin
-                data <= buffer;
-                complete <= 1;
+            if (data_reg) begin
+                rx_data <= buffer;
+                rx_complete <= 1;
             end
 
             state <= 0;
