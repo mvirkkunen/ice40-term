@@ -27,7 +27,7 @@ module top (
     reg [7:0] wr_data = 0;
     reg write = 0;
 
-    wire [7:0] uart_rx_data;
+    wire [7:0] char;
     wire uart_rx_complete;
 
     reg        blit_en = 0;
@@ -40,6 +40,11 @@ module top (
 
     reg [15:0] startup_delay = 16'hffff;
     wire startup = (startup_delay == 16'h0001);
+
+    parameter [3:0] STATE_DEFAULT = 0;
+    parameter [3:0] STATE_ESC = 1;
+    parameter [3:0] STATE_CSI = 2;
+    reg [3:0] state = STATE_DEFAULT;
 
     vga_text_mode mod_vga_text_mode (
         .clk100(clk100),
@@ -61,7 +66,7 @@ module top (
     uart_rx mod_uart_rx (
         .clk100(clk100),
         .rx(uart_rx),
-        .rx_data(uart_rx_data),
+        .rx_data(char),
         .rx_complete(uart_rx_complete)
     );
 
@@ -105,22 +110,38 @@ module top (
         else if (wr_en) begin
             wr_en <= 0;
         end else if (uart_rx_complete) begin
-            if (uart_rx_data == "\n")
-                wr_row <= wr_row + 1;
-            else if (uart_rx_data == "\r")
-                wr_col <= 0;
-            else begin
-                wr_col <= wr_col + 1;
-                if (wr_col == 80) begin
-                    wr_col <= 0;
-                    wr_row <= wr_row + 1;
-                end
+            case (state)
+                STATE_DEFAULT: begin
+                    if (char == "\n")
+                        wr_row <= wr_row + 1;
+                    else if (char == "\r")
+                        wr_col <= 0;
+                    else if (char == 8'h1b)
+                        state <= STATE_ESC;
+                    else begin
+                        wr_col <= wr_col + 1;
+                        if (wr_col == 80) begin
+                            wr_col <= 0;
+                            wr_row <= wr_row + 1;
+                        end
 
-                wr_addr <= 80 * wr_row + wr_col;
-                wr_data <= uart_rx_data;
-                wr_en <= 1;
-                write <= 1;
-            end
+                        wr_addr <= 80 * wr_row + wr_col;
+                        wr_data <= char;
+                        wr_en <= 1;
+                        write <= 1;
+                    end
+                end
+                STATE_ESC: begin
+                    if (char == "[")
+                        state <= STATE_CSI;
+                    else
+                        state <= STATE_DEFAULT;
+                end
+                STATE_CSI: begin
+                    if (8'h40 <= char && char <= 8'h7e)
+                        state <= STATE_DEFAULT;
+                end
+            endcase
         end
 
         if (wr_row == 25 && !wr_en) begin

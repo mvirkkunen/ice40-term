@@ -87,7 +87,7 @@ module vga_text_mode (
         b_wr_en <= 0;
         blit_complete <= 0;
 
-        if (blit_en) begin
+        if (!blit && blit_en) begin
             blit <= 1;
             b_addr <= blit_start;
             b_end <= blit_end;
@@ -101,14 +101,14 @@ module vga_text_mode (
                 else
                     cur_pat <= cur_pat >> 1;
 
-                if (pixel % 8 == 0) begin
+                if (pixel % 8 == 0 && !blit) begin
                     index_rd_addr <= (line + 1 - V_BACK) / 16 * 80 + (pixel + 8 - H_BACK) / 8;
                     index_rd_en <= 1;
-                end else if (pixel % 8 == 1) begin
+                end else if (pixel % 8 == 1 && !blit) begin
                     next_index <= index_rd_data - 1;
                     index_rd_en <= 0;
                 end else if (pixel % 8 == 2) begin
-                    next_pat <= chr_rom[next_index * 16 + line % 16];
+                    next_pat <= blit ? 0 : chr_rom[next_index * 16 + line % 16];
                 end
             end
 
@@ -126,21 +126,19 @@ module vga_text_mode (
                     line <= 0;
                 end
             end
-
-            if (blit) begin
-                if (b_addr == b_end) begin
-                    blit <= 0;
-                    blit_complete <= 1;
-                end else if (pixel % 8 == 2 && b_offset != 0) begin
-                    index_rd_addr <= b_addr + b_offset;
-                    index_rd_en <= 1;
-                end else if (pixel % 8 == 3) begin
-                    b_wr_addr <= b_addr;
-                    b_wr_data <= b_offset == 0 ? 8'h00 : index_rd_data;
-                    b_wr_en <= 1;
-                    b_addr <= b_addr + 1;
-                    index_rd_en <= 0;
-                end
+        end else if (blit) begin
+            if (b_addr == b_end) begin
+                blit <= 0;
+                blit_complete <= 1;
+            end else if (clkdiv == 1 && b_offset != 0) begin
+                index_rd_addr <= b_addr + b_offset + 1;
+                index_rd_en <= 1;
+            end else if (clkdiv == 2) begin
+                b_wr_addr <= b_addr;
+                b_wr_data <= b_offset == 0 ? 8'h00 : index_rd_data;
+                b_wr_en <= 1;
+                b_addr <= b_addr + 1;
+                index_rd_en <= 0;
             end
         end
     end
