@@ -8,43 +8,41 @@ module uart_tx (
 );
     parameter [9:0] BAUD_DIVISOR = 868;
 
+    parameter [3:0] STATE_IDLE     = 0;
+    parameter [3:0] STATE_DATA0    = 1;
+    parameter [3:0] STATE_DATA7    = 8;
+    parameter [3:0] STATE_STOP     = 9;
+    parameter [3:0] STATE_END      = 10;
+    parameter [3:0] STATE_COMPLETE = 11;
+
     reg [7:0] buffer = 0;
-    reg [3:0] state = 0;
+    reg [3:0] state = STATE_IDLE;
     reg [9:0] timer = 0;
 
     always @(posedge clk100) begin
-        if (state == 0) begin
-            if (tx_start) begin
-                tx <= 0;
-                buffer <= tx_data;
-                state <= 1;
-                timer <= BAUD_DIVISOR;
-            end
-        end else if (1 <= state && state <= 8) begin
-            if (timer == 0) begin
-                tx <= buffer[0];
-                buffer <= buffer >> 1;
-                state <= state + 1;
-                timer <= BAUD_DIVISOR;
-            end else
-                timer <= timer - 1;
-        end else if (state == 9) begin
-            if (timer == 0) begin
-                tx <= 1;
-                state <= 10;
-                timer <= BAUD_DIVISOR;
-            end else
-                timer <= timer - 1;
-        end else if (state == 10) begin
-            if (timer == 0) begin
-                state <= 11;
-            end else
-                timer <= timer - 1;
-        end else if (state == 11) begin
-            state <= 0;
+        timer <= timer - 1;
+
+        if (state == STATE_IDLE && tx_start) begin
+            tx <= 0;
+            buffer <= tx_data;
+            state <= state + 1;
+            timer <= BAUD_DIVISOR;
+        end else if (STATE_DATA0 <= state && state <= STATE_DATA7 && timer == 0) begin
+            tx <= buffer[0];
+            buffer <= buffer >> 1;
+            state <= state + 1;
+            timer <= BAUD_DIVISOR;
+        end else if (state == STATE_STOP && timer == 0) begin
+            tx <= 1;
+            state <= state + 1;
+            timer <= BAUD_DIVISOR;
+        end else if (state == STATE_END && timer == 0) begin
+            state <= state + 1;
+        end else if (state == STATE_COMPLETE && timer == 0) begin
+            state <= STATE_IDLE;
         end
     end
 
     assign tx_busy = (state != 0);
-    assign tx_complete = (state == 11);
+    assign tx_complete = (state == STATE_COMPLETE);
 endmodule

@@ -31,7 +31,7 @@ module top (
     wire uart_rx_complete;
 
     reg [15:0] startup_delay = 16'hffff;
-    wire startup = (startup_delay == 8'h01);
+    wire startup = (startup_delay == 16'h0001);
 
     vga_text_mode mod_vga_text_mode (
         .clk100(clk100),
@@ -82,18 +82,8 @@ module top (
             end
         end
 
-        if (startup_delay > 0)
+        if (startup_delay != 0)
             startup_delay <= startup_delay - 1;
-
-        /*uart_tx_start <= 0;
-
-        if (ps2_rx_complete) begin
-            led2 <= !led2;
-            uart_tx_data <= ps2_rx_data;
-            uart_tx_start <= 1;
-            led <= !led;
-        end else if (uart_tx_start)
-            uart_tx_start <= 0;*/
 
         if (write)
             write <= 0;
