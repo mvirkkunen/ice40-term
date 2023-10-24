@@ -30,6 +30,14 @@ module top (
     wire [7:0] uart_rx_data;
     wire uart_rx_complete;
 
+    reg        blit_en = 0;
+    reg [10:0] blit_start = 0;
+    reg [10:0] blit_end = 0;
+    reg [7:0]  blit_offset = 0;
+    wire       blit_complete;
+
+    reg        clear_last = 0;
+
     reg [15:0] startup_delay = 16'hffff;
     wire startup = (startup_delay == 16'h0001);
 
@@ -38,6 +46,11 @@ module top (
         .wr_en(wr_en),
         .wr_addr(wr_addr),
         .wr_data(wr_data),
+        .blit_en(blit_en),
+        .blit_start(blit_start),
+        .blit_end(blit_end),
+        .blit_offset(blit_offset),
+        .blit_complete(blit_complete),
         .vga_red(vga_red),
         .vga_green(vga_green),
         .vga_blue(vga_blue),
@@ -67,6 +80,8 @@ module top (
     );
 
     always @(posedge clk100) begin
+        blit_en <= 0;
+
         us_div <= us_div + 1;
         if (us_div == 100) begin
             us_div <= 0;
@@ -106,9 +121,26 @@ module top (
                 wr_en <= 1;
                 write <= 1;
             end
+        end
 
-            if (wr_row == 25)
-                wr_row <= 0;
+        if (wr_row == 25 && !wr_en) begin
+            wr_row <= 24;
+
+            blit_start <= 0;
+            blit_end <= 24 * 80;
+            blit_offset <= 80;
+            blit_en <= 1;
+
+            clear_last <= 1;
+        end
+
+        if (clear_last && blit_complete) begin
+            clear_last <= 0;
+
+            blit_start <= 24 * 80;
+            blit_end <= 25 * 80;
+            blit_offset <= 0;
+            blit_en <= 1;
         end
     end
 
