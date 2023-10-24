@@ -17,4 +17,5 @@ with Image.open("font.png") as im:
                 byte |= 0x80 if p[0] > 128 else 0x00
             data.append(byte)
 
-print(hexlify(bytes(data), b" ").decode("ascii"))
+with open("build/chr_rom.hex", "wb") as f:
+    f.write(hexlify(bytes(data), b" "))

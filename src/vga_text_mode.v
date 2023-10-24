@@ -1,13 +1,13 @@
 module index_ram (
-    input        clk,
-    input        wr_en,
-    input [10:0] wr_addr,
-    input [7:0]  wr_data,
-    input        rd_en,
-    input [10:0] rd_addr,
-    output [7:0] rd_data,
+    input             clk,
+    input             wr_en,
+    input      [10:0] wr_addr,
+    input      [7:0]  wr_data,
+    input             rd_en,
+    input      [10:0] rd_addr,
+    output reg [7:0]  rd_data = 8'h00
 );
-    reg [7:0] mem [1<<13:0];
+    reg [7:0] mem [0:1<<13];
 
     always @(posedge clk) begin
         if (rd_en)
@@ -26,7 +26,7 @@ module vga_text_mode (
     output [2:0]  vga_green,
     output [2:0]  vga_blue,
     output        vga_hsync,
-    output        vga_vsync,
+    output        vga_vsync
 );
     localparam [9:0] H_BACK = 48;
     localparam [9:0] H_VISIBLE = 640;
@@ -45,7 +45,7 @@ module vga_text_mode (
     reg [9:0] line = 0;
     reg [9:0] pixel = 0;
 
-    reg [7:0] chr_rom [256*16-1:0];
+    reg [7:0] chr_rom [0:256*16-1];
     initial $readmemh("build/chr_rom.hex", chr_rom);
 
     reg         index_rd_en = 0;
@@ -59,7 +59,7 @@ module vga_text_mode (
         .wr_data(wr_data),
         .rd_en(index_rd_en),
         .rd_addr(index_rd_addr),
-        .rd_data(index_rd_data),
+        .rd_data(index_rd_data)
     );
 
     reg [7:0] next_index = 0;

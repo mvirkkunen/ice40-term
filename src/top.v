@@ -3,7 +3,7 @@ module top (
     input        uart_rx,
     output       uart_tx,
     input        ps2_clk,
-    input        ps2_dat,
+    input        ps2_data,
     output       led1,
     output       led2,
     output [2:0] vga_red,
@@ -11,6 +11,10 @@ module top (
     output [2:0] vga_blue,
     output       vga_hsync,
     output       vga_vsync,
+    output       spi_sdo,
+    input        spi_sdi,
+    output       spi_sck,
+    output       spi_ss
 );
     reg [7:0] us_div = 0;
     reg [10:0] ms_div = 0;
@@ -26,14 +30,8 @@ module top (
     wire [7:0] uart_rx_data;
     wire uart_rx_complete;
 
-    reg [7:0] uart_tx_data;
-    reg uart_tx_start;
-    wire uart_tx_busy;
-
-    wire [7:0] ps2_rx_data;
-    wire ps2_rx_complete;
-
-    reg led = 0;
+    reg [15:0] startup_delay = 16'hffff;
+    wire startup = (startup_delay == 8'h01);
 
     vga_text_mode mod_vga_text_mode (
         .clk100(clk100),
@@ -44,30 +42,28 @@ module top (
         .vga_green(vga_green),
         .vga_blue(vga_blue),
         .vga_hsync(vga_hsync),
-        .vga_vsync(vga_vsync),
+        .vga_vsync(vga_vsync)
     );
 
     uart_rx mod_uart_rx (
         .clk100(clk100),
         .rx(uart_rx),
         .rx_data(uart_rx_data),
-        .rx_complete(uart_rx_complete),
+        .rx_complete(uart_rx_complete)
     );
 
-    uart_tx mod_uart_tx (
+    keyboard_transmitter mod_keyboard_transmitter (
         .clk100(clk100),
-        .tx(uart_tx),
-        .tx_data(uart_tx_data),
-        .tx_start(uart_tx_start),
-        .tx_busy(uart_tx_busy),
-    );
-
-    ps2 ps2_mod (
-        .clk100(clk100),
-        .clk(ps2_clk),
-        .data(ps2_data),
-        .rx_data(ps2_rx_data),
-        .rx_complete(ps2_rx_complete),
+        .startup(startup),
+        .uart_tx(uart_tx),
+        .ps2_clk(ps2_clk),
+        .ps2_data(ps2_data),
+        .spi_sdo(spi_sdo),
+        .spi_sdi(spi_sdi),
+        .spi_sck(spi_sck),
+        .spi_ss(spi_ss),
+        .led1(led1),
+        .led2(led2)
     );
 
     always @(posedge clk100) begin
@@ -86,9 +82,13 @@ module top (
             end
         end
 
-        uart_tx_start <= 0;
+        if (startup_delay > 0)
+            startup_delay <= startup_delay - 1;
 
-        /*if (ps2_rx_complete) begin
+        /*uart_tx_start <= 0;
+
+        if (ps2_rx_complete) begin
+            led2 <= !led2;
             uart_tx_data <= ps2_rx_data;
             uart_tx_start <= 1;
             led <= !led;
@@ -100,9 +100,6 @@ module top (
         else if (wr_en) begin
             wr_en <= 0;
         end else if (uart_rx_complete) begin
-            uart_tx_data <= uart_rx_data;
-            uart_tx_start <= 1;
-
             if (uart_rx_data == "\n")
                 wr_row <= wr_row + 1;
             else if (uart_rx_data == "\r")
@@ -125,6 +122,6 @@ module top (
         end
     end
 
-    assign led1 = led;
-    assign led2 = ps2_data;
+    //assign led1 = 0;
+    //assign led2 = 0;
 endmodule

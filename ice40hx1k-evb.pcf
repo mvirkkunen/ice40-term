@@ -7,7 +7,7 @@ set_io uart_rx      1
 set_io uart_tx      2
 
 set_io ps2_clk      37
-set_io ps2_dat      36
+set_io ps2_data     36
 
 set_io vga_red[0]   18
 set_io vga_red[1]   19
@@ -20,3 +20,8 @@ set_io vga_blue[1]  29
 set_io vga_blue[2]  30
 set_io vga_hsync    33
 set_io vga_vsync    34
+
+set_io spi_sdo      45
+set_io spi_sdi      46
+set_io spi_sck      48
+set_io spi_ss       49
