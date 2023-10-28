@@ -4,7 +4,7 @@ module uart_tx (
     input [7:0] tx_data,
     input       tx_start,
     output      tx_busy,
-    output      tx_complete
+    output reg  tx_complete
 );
     parameter [9:0] BAUD_DIVISOR = 868;
 
@@ -21,6 +21,7 @@ module uart_tx (
 
     always @(posedge clk100) begin
         timer <= timer - 1;
+        tx_complete <= 0;
 
         if (state == STATE_IDLE && tx_start) begin
             tx <= 0;
@@ -40,9 +41,9 @@ module uart_tx (
             state <= state + 1;
         end else if (state == STATE_COMPLETE && timer == 0) begin
             state <= STATE_IDLE;
+            tx_complete <= 1;
         end
     end
 
-    assign tx_busy = (state != 0);
-    assign tx_complete = (state == STATE_COMPLETE);
+    assign tx_busy = (state != STATE_IDLE);
 endmodule

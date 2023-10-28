@@ -111,7 +111,7 @@ module vga_text_mode (
             else if (pixel % 8 == 1)
                 next_pat <= chr_rom[(index_rd_data) * 16 + line % 16];
 
-            if (h_state == S_VISIBLE && v_state == S_VISIBLE && pixel >= 8)
+            if (h_state == S_VISIBLE && v_state == S_VISIBLE && pixel >= 8 && !index_wr_busy)
                 rgb <= cur_pat[0] ? fg : bg;
             else
                 rgb <= 0;

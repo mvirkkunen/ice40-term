@@ -119,11 +119,14 @@ module keyboard_transmitter (
             end
         end
 
-        if (spi_complete) begin
+        if (spi_complete && spi_data_out[7:0] != 8'hff) begin
             uart_tx_data <= spi_data_out[7:0];
             uart_tx_start <= 1;
             tx_buf <= spi_data_out >> 8;
-            //led1 <= !led1;
+        end
+
+        if (uart_tx_complete) begin
+            led1 <= !led1;
         end
 
         if (uart_tx_complete && tx_buf[7:0] != 8'hff) begin

@@ -25,6 +25,7 @@ module top (
 
     wire [7:0] char;
     wire uart_rx_complete;
+    reg uart_rx_pending = 0;
 
     reg        wr_start = 0;
     reg [10:0] wr_begin = 0;
@@ -32,6 +33,7 @@ module top (
     reg [7:0]  wr_data = 0;
     reg [7:0]  wr_offset = 0;
     wire       wr_complete;
+    reg wr_busy = 0;
 
     reg        clear_last = 0;
 
@@ -90,6 +92,9 @@ module top (
     always @(posedge clk100) begin
         wr_start <= 0;
 
+        if (wr_start)
+            wr_busy <= 1;
+
         /*us_div <= us_div + 1;
         if (us_div == 100) begin
             us_div <= 0;
@@ -108,7 +113,12 @@ module top (
         if (startup_delay != 0)
             startup_delay <= startup_delay - 1;
 
-        if (uart_rx_complete) begin
+        if (uart_rx_complete)
+            uart_rx_pending <= 1;
+
+        if (uart_rx_pending && !wr_busy) begin
+            uart_rx_pending <= 0;
+
             case (state)
                 STATE_DEFAULT: case (char)
                     CH_NUL: ;
@@ -138,20 +148,33 @@ module top (
                         state <= STATE_DEFAULT;
                 end
                 STATE_CSI: begin
-                    if (char == "K") begin
+                    if (char == "C") begin
+                        wr_col <= wr_col + 1;
+                    end if (char == "H") begin
+                        wr_row <= 0;
+                        wr_col <= 0;
+                    end else if (char == "J") begin
+                        wr_begin <= 0;
+                        wr_end <= 25 * 80;
+                        wr_offset <= 0;
+                        wr_data <= 0;
+                        wr_start <= 1;
+                    end else if (char == "K") begin
                         wr_begin <= wr_row * 80 + wr_col;
                         wr_end <= wr_row * 80 + 80;
                         wr_offset <= 0;
                         wr_data <= 0;
                         wr_start <= 1;
-                        state <= STATE_DEFAULT;
-                    end else if (char & 8'h40) begin
-                        state <= STATE_DEFAULT;
-                        wr_begin <= 80 * wr_row + wr_col;
-                        wr_end <= 80 * wr_row + wr_col + 1;
-                        wr_data <= char;
+                    end else if (char == "P") begin
+                        wr_begin <= wr_row * 80 + wr_col + 1;
+                        wr_end <= wr_row * 80 + wr_col + 2;
                         wr_offset <= 0;
+                        wr_data <= 0;
                         wr_start <= 1;
+                    end 
+                    
+                    if (char & 8'h40) begin
+                        state <= STATE_DEFAULT;
                     end
                 end
             endcase
@@ -168,14 +191,17 @@ module top (
             clear_last <= 1;
         end
 
-        if (clear_last && wr_complete) begin
-            wr_begin <= 24 * 80;
-            wr_end <= 25 * 80;
-            wr_data <= 0;
-            wr_offset <= 0;
-            wr_start <= 1;
+        if (wr_complete) begin
+            if (clear_last) begin
+                wr_begin <= 24 * 80;
+                wr_end <= 25 * 80;
+                wr_data <= 0;
+                wr_offset <= 0;
+                wr_start <= 1;
 
-            clear_last <= 0;
+                clear_last <= 0;
+            end else
+                wr_busy <= 0;
         end
     end
 

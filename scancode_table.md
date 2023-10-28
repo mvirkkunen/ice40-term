@@ -40,7 +40,7 @@
 | 4d       | p        | P     |       |             | \x10 | P            |
 | 54       | å        | Å     |       |             |      | å            |
 | 5b       | ¨        | ^     | ~     |             |      | ¨            |
-| 5a       | \r\n     |       |       |             |      | Enter        |
+| 5a       | \n       |       |       |             |      | Enter        |
 | 58       |          |       |       |             |      | CapsLock     |
 | 1c       | a        | A     | ə     | Ə           | \x01 | A            |
 | 1b       | s        | S     | ß     | ẞ           | \x13 | S            |
@@ -75,15 +75,15 @@
 | e0-2f    |          |       |       |             |      | Menu         |
 | e0-14    |          |       |       |             |      | RCtrl        |
 | e0-70    | \x1b[2~  |       |       |             |      | Insert       |
-| e0-6c    | \x1b[H~  |       |       |             |      | Home         |
-| e0-7d    | \x1b[A~  |       |       |             |      | PgUp         |
-| e0-69    | \x1b[F~  |       |       |             |      | End          |
+| e0-6c    | \x1b[H   |       |       |             |      | Home         |
+| e0-7d    | \x1b[5~  |       |       |             |      | PgUp         |
+| e0-69    | \x1b[F   |       |       |             |      | End          |
 | e0-71    | \x1b[3~  |       |       |             |      | Delete       |
-| e0-7a    | \x1b[B~  |       |       |             |      | PgDn         |
-| e0-75    | \x1b[A~  |       |       |             |      | Up           |
-| e0-6b    | \x1b[D~  |       |       |             |      | Left         |
-| e0-72    | \x1b[B~  |       |       |             |      | Down         |
-| e0-74    | \x1b[C~  |       |       |             |      | Right        |
+| e0-7a    | \x1b[6~  |       |       |             |      | PgDn         |
+| e0-75    | \x1b[A   |       |       |             |      | Up           |
+| e0-6b    | \x1b[D   |       |       |             |      | Left         |
+| e0-72    | \x1b[B   |       |       |             |      | Down         |
+| e0-74    | \x1b[C   |       |       |             |      | Right        |
 | 77       |          |       |       |             |      | NumLock      |
 | e0-4a    | /        |       |       |             |      | KP-/         |
 | 7c       | *        |       |       |             |      | KP-*         |
@@ -98,7 +98,7 @@
 | 69       | 1        |       |       |             |      | KP-1 / End   |
 | 72       | 2        |       |       |             |      | KP-2 / Down  |
 | 7a       | 3        |       |       |             |      | KP-3 / PgDn  |
-| e0-5a    | \r\n     |       |       |             |      | KP-Enter     |
+| e0-5a    | \n       |       |       |             |      | KP-Enter     |
 | 70       | 0        |       |       |             |      | KP-0 / Ins   |
 | 71       | .        |       |       |             |      | KP-. / Del   |
 | e0-7c    |          |       |       |             |      | PrtScr       |
