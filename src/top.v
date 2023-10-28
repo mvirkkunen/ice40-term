@@ -37,6 +37,9 @@ module top (
 
     reg        clear_last = 0;
 
+    reg [7:0] csi_p1 = 0;
+    reg [7:0] csi_p2 = 0;
+
     reg [15:0] startup_delay = 16'hffff;
     wire startup = (startup_delay == 16'h0001);
 
@@ -142,17 +145,19 @@ module top (
                     end
                 endcase
                 STATE_ESC: begin
-                    if (char == "[")
+                    if (char == "[") begin
+                        csi_p1 <= 0;
+                        csi_p2 <= 0;
                         state <= STATE_CSI;
-                    else
+                    end else
                         state <= STATE_DEFAULT;
                 end
                 STATE_CSI: begin
                     if (char == "C") begin
                         wr_col <= wr_col + 1;
                     end if (char == "H") begin
-                        wr_row <= 0;
-                        wr_col <= 0;
+                        wr_row <= csi_p2 - 1;
+                        wr_col <= csi_p1 - 1;
                     end else if (char == "J") begin
                         wr_begin <= 0;
                         wr_end <= 25 * 80;
@@ -171,7 +176,12 @@ module top (
                         wr_offset <= 0;
                         wr_data <= 0;
                         wr_start <= 1;
-                    end 
+                    end else if ("0" <= char && char <= "9") begin
+                        csi_p1 <= (csi_p1 * 10) + (char - "0");
+                    end else if (char == ";") begin
+                        csi_p2 <= csi_p1;
+                        csi_p1 <= 0;
+                    end
                     
                     if (char & 8'h40) begin
                         state <= STATE_DEFAULT;
