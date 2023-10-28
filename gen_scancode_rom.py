@@ -33,5 +33,5 @@ with open("scancode_table.md", "r") as f:
 with open("build/scancode_rom.bin", "wb") as f:
     for s in range(5):
         for k in range(0x80):
-            f.write(keys[k][s].ljust(8, b"\0"))
+            f.write(keys[k][s].ljust(8, b"\xff"))
 

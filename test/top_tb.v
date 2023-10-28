@@ -70,9 +70,9 @@ module top_tb;
 
             uut.wr_start <= 1;
             uut.wr_begin <= 0;
-            uut.wr_end <= 1;
-            uut.wr_data <= 8'h20;
-            uut.wr_offset <= 0;
+            uut.wr_end <= 24 * 80;
+            uut.wr_data <= 0;
+            uut.wr_offset <= 80;
 
             #1
 
@@ -81,7 +81,7 @@ module top_tb;
             #20;
         end
 
-        #1000
+        #20000
 
 
         $finish();

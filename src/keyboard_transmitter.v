@@ -126,7 +126,7 @@ module keyboard_transmitter (
             //led1 <= !led1;
         end
 
-        if (uart_tx_complete && tx_buf[7:0] != 0) begin
+        if (uart_tx_complete && tx_buf[7:0] != 8'hff) begin
             uart_tx_data <= tx_buf[7:0];
             uart_tx_start <= 1;
             tx_buf <= tx_buf >> 8;

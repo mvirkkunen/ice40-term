@@ -38,6 +38,8 @@ module top (
     reg [15:0] startup_delay = 16'hffff;
     wire startup = (startup_delay == 16'h0001);
 
+    parameter [7:0] CH_NUL = 8'h00;
+    parameter [7:0] CH_BEL = 8'h07;
     parameter [7:0] CH_BS = 8'h08;
     parameter [7:0] CH_LF = 8'h0a;
     parameter [7:0] CH_CR = 8'h0d;
@@ -50,6 +52,7 @@ module top (
 
     vga_text_mode mod_vga_text_mode (
         .clk100(clk100),
+        .cursor(wr_row * 80 + wr_col),
         .wr_start(wr_start),
         .wr_begin(wr_begin),
         .wr_end(wr_end),
@@ -107,20 +110,16 @@ module top (
 
         if (uart_rx_complete) begin
             case (state)
-                STATE_DEFAULT: begin
-                    if (char == CH_LF)
-                        wr_row <= wr_row + 1;
-                    else if (char == CH_CR)
-                        wr_col <= 0;
-                    else if (char == CH_ESC)
-                        state <= STATE_ESC;
-                    else if (char == CH_BS) begin
-                        if (wr_col > 0)
-                            wr_col <= wr_col - 1;
-                    end
-                    else begin
+                STATE_DEFAULT: case (char)
+                    CH_NUL: ;
+                    CH_BEL: ;
+                    CH_LF: wr_row <= wr_row + 1;
+                    CH_CR: wr_col <= 0;
+                    CH_ESC: state <= STATE_ESC;
+                    CH_BS: if (wr_col > 0) wr_col <= wr_col - 1;
+                    default: begin
                         wr_col <= wr_col + 1;
-                        if (wr_col == 80) begin
+                        if (wr_col == 80 - 1) begin
                             wr_col <= 0;
                             wr_row <= wr_row + 1;
                         end
@@ -131,7 +130,7 @@ module top (
                         wr_offset <= 0;
                         wr_start <= 1;
                     end
-                end
+                endcase
                 STATE_ESC: begin
                     if (char == "[")
                         state <= STATE_CSI;
@@ -139,14 +138,21 @@ module top (
                         state <= STATE_DEFAULT;
                 end
                 STATE_CSI: begin
-                    /*if (char == "K") begin
-                        blit_start <= wr_row * 80 + wr_col;
-                        blit_end <= wr_row * 80 + 80;
-                        blit_offset <= 0;
-                        blit_en <= 1;
+                    if (char == "K") begin
+                        wr_begin <= wr_row * 80 + wr_col;
+                        wr_end <= wr_row * 80 + 80;
+                        wr_offset <= 0;
+                        wr_data <= 0;
+                        wr_start <= 1;
                         state <= STATE_DEFAULT;
-                    end else*/ if (char & 8'h40)
+                    end else if (char & 8'h40) begin
                         state <= STATE_DEFAULT;
+                        wr_begin <= 80 * wr_row + wr_col;
+                        wr_end <= 80 * wr_row + wr_col + 1;
+                        wr_data <= char;
+                        wr_offset <= 0;
+                        wr_start <= 1;
+                    end
                 end
             endcase
         end
@@ -156,7 +162,7 @@ module top (
 
             wr_begin <= 0;
             wr_end <= 24 * 80;
-            wr_offset <= 80;
+            wr_offset <= 81;
             wr_start <= 1;
 
             clear_last <= 1;

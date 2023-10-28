@@ -12,7 +12,7 @@ with Image.open("font.png") as im:
         for y in range(0, 16):
             byte = 0
             for x in range(0, 8):
-                p = pixels[((c // 32) * 16 + y) * (8 * 32) + (c % 32) * 8 + x]
+                p = pixels[((c // 16) * 16 + y) * (8 * 16) + (c % 16) * 8 + x]
                 byte >>= 1
                 byte |= 0x80 if p[0] > 128 else 0x00
             data.append(byte)
