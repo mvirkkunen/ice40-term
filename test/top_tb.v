@@ -33,9 +33,9 @@ module top_tb;
         $dumpfile("build/test.vcd");
         $dumpvars(0, top_tb);
 
-        #10000
+        #1000
 
-        fork
+        /*fork
             repeat (20) begin
                 #(2*866) uart_rx <= 0;
                 #(2*866) uart_rx <= 0;
@@ -63,7 +63,23 @@ module top_tb;
                 #100 ps2_clk <= 1; ps2_data <= 1; #100 ps2_clk <= 0;
                 #10000;
             end
-        join
+        join*/
+
+        repeat (20) begin
+            #1
+
+            uut.wr_start <= 1;
+            uut.wr_begin <= 0;
+            uut.wr_end <= 1;
+            uut.wr_data <= 8'h20;
+            uut.wr_offset <= 0;
+
+            #1
+
+            uut.wr_start <= 0;
+
+            #20;
+        end
 
         #1000
 

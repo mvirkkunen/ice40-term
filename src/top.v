@@ -16,30 +16,32 @@ module top (
     output       spi_sck,
     output       spi_ss
 );
-    reg [7:0] us_div = 0;
-    reg [10:0] ms_div = 0;
-    reg [10:0] s_div = 0;
+    //reg [7:0] us_div = 0;
+    //reg [10:0] ms_div = 0;
+    //reg [10:0] s_div = 0;
 
     reg [5:0] wr_row = 0;
     reg [6:0] wr_col = 0;
-    reg wr_en = 0;
-    reg [10:0] wr_addr = 0;
-    reg [7:0] wr_data = 0;
-    reg write = 0;
 
     wire [7:0] char;
     wire uart_rx_complete;
 
-    reg        blit_en = 0;
-    reg [10:0] blit_start = 0;
-    reg [10:0] blit_end = 0;
-    reg [7:0]  blit_offset = 0;
-    wire       blit_complete;
+    reg        wr_start = 0;
+    reg [10:0] wr_begin = 0;
+    reg [10:0] wr_end = 0;
+    reg [7:0]  wr_data = 0;
+    reg [7:0]  wr_offset = 0;
+    wire       wr_complete;
 
     reg        clear_last = 0;
 
     reg [15:0] startup_delay = 16'hffff;
     wire startup = (startup_delay == 16'h0001);
+
+    parameter [7:0] CH_BS = 8'h08;
+    parameter [7:0] CH_LF = 8'h0a;
+    parameter [7:0] CH_CR = 8'h0d;
+    parameter [7:0] CH_ESC = 8'h1b;
 
     parameter [3:0] STATE_DEFAULT = 0;
     parameter [3:0] STATE_ESC = 1;
@@ -48,14 +50,12 @@ module top (
 
     vga_text_mode mod_vga_text_mode (
         .clk100(clk100),
-        .wr_en(wr_en),
-        .wr_addr(wr_addr),
+        .wr_start(wr_start),
+        .wr_begin(wr_begin),
+        .wr_end(wr_end),
         .wr_data(wr_data),
-        .blit_en(blit_en),
-        .blit_start(blit_start),
-        .blit_end(blit_end),
-        .blit_offset(blit_offset),
-        .blit_complete(blit_complete),
+        .wr_offset(wr_offset),
+        .wr_complete(wr_complete),
         .vga_red(vga_red),
         .vga_green(vga_green),
         .vga_blue(vga_blue),
@@ -85,9 +85,9 @@ module top (
     );
 
     always @(posedge clk100) begin
-        blit_en <= 0;
+        wr_start <= 0;
 
-        us_div <= us_div + 1;
+        /*us_div <= us_div + 1;
         if (us_div == 100) begin
             us_div <= 0;
             ms_div <= ms_div + 1;
@@ -100,24 +100,24 @@ module top (
                     s_div <= 0;
                 end
             end
-        end
+        end*/
 
         if (startup_delay != 0)
             startup_delay <= startup_delay - 1;
 
-        if (write)
-            write <= 0;
-        else if (wr_en) begin
-            wr_en <= 0;
-        end else if (uart_rx_complete) begin
+        if (uart_rx_complete) begin
             case (state)
                 STATE_DEFAULT: begin
-                    if (char == "\n")
+                    if (char == CH_LF)
                         wr_row <= wr_row + 1;
-                    else if (char == "\r")
+                    else if (char == CH_CR)
                         wr_col <= 0;
-                    else if (char == 8'h1b)
+                    else if (char == CH_ESC)
                         state <= STATE_ESC;
+                    else if (char == CH_BS) begin
+                        if (wr_col > 0)
+                            wr_col <= wr_col - 1;
+                    end
                     else begin
                         wr_col <= wr_col + 1;
                         if (wr_col == 80) begin
@@ -125,10 +125,11 @@ module top (
                             wr_row <= wr_row + 1;
                         end
 
-                        wr_addr <= 80 * wr_row + wr_col;
+                        wr_begin <= 80 * wr_row + wr_col;
+                        wr_end <= 80 * wr_row + wr_col + 1;
                         wr_data <= char;
-                        wr_en <= 1;
-                        write <= 1;
+                        wr_offset <= 0;
+                        wr_start <= 1;
                     end
                 end
                 STATE_ESC: begin
@@ -138,30 +139,37 @@ module top (
                         state <= STATE_DEFAULT;
                 end
                 STATE_CSI: begin
-                    if (8'h40 <= char && char <= 8'h7e)
+                    /*if (char == "K") begin
+                        blit_start <= wr_row * 80 + wr_col;
+                        blit_end <= wr_row * 80 + 80;
+                        blit_offset <= 0;
+                        blit_en <= 1;
+                        state <= STATE_DEFAULT;
+                    end else*/ if (char & 8'h40)
                         state <= STATE_DEFAULT;
                 end
             endcase
         end
 
-        if (wr_row == 25 && !wr_en) begin
+        if (wr_row == 25) begin
             wr_row <= 24;
 
-            blit_start <= 0;
-            blit_end <= 24 * 80;
-            blit_offset <= 80;
-            blit_en <= 1;
+            wr_begin <= 0;
+            wr_end <= 24 * 80;
+            wr_offset <= 80;
+            wr_start <= 1;
 
             clear_last <= 1;
         end
 
-        if (clear_last && blit_complete) begin
-            clear_last <= 0;
+        if (clear_last && wr_complete) begin
+            wr_begin <= 24 * 80;
+            wr_end <= 25 * 80;
+            wr_data <= 0;
+            wr_offset <= 0;
+            wr_start <= 1;
 
-            blit_start <= 24 * 80;
-            blit_end <= 25 * 80;
-            blit_offset <= 0;
-            blit_en <= 1;
+            clear_last <= 0;
         end
     end
 

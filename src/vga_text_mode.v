@@ -19,14 +19,12 @@ endmodule
 
 module vga_text_mode (
     input             clk100,
-    input             wr_en,
-    input      [10:0] wr_addr,
+    input             wr_start,
+    input      [10:0] wr_begin,
+    input      [10:0] wr_end,
     input      [7:0]  wr_data,
-    input             blit_en,
-    input      [10:0] blit_start,
-    input      [10:0] blit_end,
-    input      [7:0]  blit_offset,
-    output reg        blit_complete = 0,
+    input      [7:0]  wr_offset,
+    output     reg    wr_complete,
     output     [2:0]  vga_red,
     output     [2:0]  vga_green,
     output     [2:0]  vga_blue,
@@ -56,19 +54,19 @@ module vga_text_mode (
     reg  [10:0] index_rd_addr = 0;
     wire [7:0]  index_rd_data;
 
-    reg        blit = 0;
-    reg [10:0] b_addr = 0;
-    reg [10:0] b_end = 0;
-    reg [7:0]  b_offset = 0;
-    reg        b_wr_en = 0;
-    reg [10:0] b_wr_addr = 0;
-    reg [7:0]  b_wr_data = 0;
+    reg         index_wr_start_reg = 0;
+    reg         index_wr_busy = 0;
+    reg         index_wr_en = 0;
+    reg [10:0]  index_wr_addr = 0;
+    reg [10:0]  index_wr_end = 0;
+    reg [7:0]   index_wr_data = 0;
+    reg [7:0]   index_wr_offset = 0;
 
     index_ram r (
         .clk(clk100),
-        .wr_en(blit ? b_wr_en : wr_en),
-        .wr_addr(blit ? b_wr_addr : wr_addr),
-        .wr_data(blit ? b_wr_data : wr_data),
+        .wr_en(index_wr_en),
+        .wr_addr(index_wr_addr),
+        .wr_data(index_wr_data),
         .rd_en(index_rd_en),
         .rd_addr(index_rd_addr),
         .rd_data(index_rd_data)
@@ -84,38 +82,40 @@ module vga_text_mode (
 
     always @(posedge clk100) begin
         clkdiv <= clkdiv + 1;
-        b_wr_en <= 0;
-        blit_complete <= 0;
+        index_wr_en <= 0;
+        index_rd_en <= 0;
+        wr_complete <= 0;
 
-        if (!blit && blit_en) begin
-            blit <= 1;
-            b_addr <= blit_start;
-            b_end <= blit_end;
-            b_offset <= blit_offset;
+        if (!index_wr_busy && wr_start) begin
+            index_wr_start_reg <= 1;
+            index_wr_addr <= wr_begin;
+            index_wr_end <= wr_end;
+            index_wr_data <= wr_data;
+            index_wr_offset <= wr_offset;
         end
 
         if (clkdiv == 0) begin
-            if (V_BACK - 1 <= line && line < V_BACK + 16 * 25 && H_BACK - 8 <= pixel && pixel < H_BACK + H_VISIBLE) begin
+            if (V_BACK <= line && line < V_BACK + 16 * 25 && H_BACK - 8 <= pixel && pixel < H_BACK + H_VISIBLE) begin
                 if (pixel % 8 == 7)
                     cur_pat <= next_pat;
                 else
                     cur_pat <= cur_pat >> 1;
 
-                if (pixel % 8 == 0 && !blit) begin
+                if (pixel % 8 == 0 && !index_wr_busy) begin
                     index_rd_addr <= (line + 1 - V_BACK) / 16 * 80 + (pixel + 8 - H_BACK) / 8;
                     index_rd_en <= 1;
-                end else if (pixel % 8 == 1 && !blit) begin
+                end else if (pixel % 8 == 1 && !index_wr_busy) begin
                     next_index <= index_rd_data - 1;
-                    index_rd_en <= 0;
                 end else if (pixel % 8 == 2) begin
-                    next_pat <= blit ? 0 : chr_rom[next_index * 16 + line % 16];
+                    next_pat <= index_wr_busy ? 0 : chr_rom[next_index * 16 + line % 16];
                 end
-            end
+            end else
+                cur_pat <= 0;
 
-            if (V_BACK <= line && line < V_BACK + 16 * 25 && H_BACK <= pixel && pixel < H_BACK + H_VISIBLE)
+            //if (V_BACK <= line && line < V_BACK + 16 * 25 && H_BACK <= pixel && pixel < H_BACK + H_VISIBLE)
                 rgb <= cur_pat[0] != 0 ? 9'b111111111 : 0;
-            else
-                rgb <= 0;
+            //else
+            //    rgb <= 0;
 
             pixel <= pixel + 1;
             if (pixel == H_TOTAL) begin
@@ -126,19 +126,24 @@ module vga_text_mode (
                     line <= 0;
                 end
             end
-        end else if (blit) begin
-            if (b_addr == b_end) begin
-                blit <= 0;
-                blit_complete <= 1;
-            end else if (clkdiv == 1 && b_offset != 0) begin
-                index_rd_addr <= b_addr + b_offset + 1;
+
+            if (index_wr_start_reg) begin
+                index_wr_busy <= 1;
+                index_wr_start_reg <= 0;
+            end
+        end else if (index_wr_busy) begin
+            if (index_wr_addr == index_wr_end) begin
+                index_wr_busy <= 0;
+                wr_complete <= 1;
+            end else if (clkdiv == 1) begin
+                index_rd_addr <= index_wr_addr + index_wr_offset;
                 index_rd_en <= 1;
             end else if (clkdiv == 2) begin
-                b_wr_addr <= b_addr;
-                b_wr_data <= b_offset == 0 ? 8'h00 : index_rd_data;
-                b_wr_en <= 1;
-                b_addr <= b_addr + 1;
-                index_rd_en <= 0;
+                if (index_wr_offset != 0) begin
+                    index_wr_data <= index_rd_data;
+                end
+                index_wr_en <= 1;
+                index_wr_addr <= index_wr_addr + 1;
             end
         end
     end
