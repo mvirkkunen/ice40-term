@@ -6,6 +6,7 @@ module top_tb;
     reg uart_rx = 1;
     reg ps2_clk = 1;
     reg ps2_data = 1;
+    reg spi_sdi = 0;
 
     top uut (
         .clk100(clk),
@@ -21,7 +22,7 @@ module top_tb;
         //.vga_hsync(),
         //.vga_vsync(),
         //.spi_sdo(),
-        .spi_sdi(1'b0)
+        .spi_sdi(spi_sdi)
         //.spi_sck(),
         //.spi_ss()
     );
@@ -35,7 +36,7 @@ module top_tb;
 
         #1000
 
-        /*fork
+        fork
             repeat (20) begin
                 #(2*866) uart_rx <= 0;
                 #(2*866) uart_rx <= 0;
@@ -63,9 +64,14 @@ module top_tb;
                 #100 ps2_clk <= 1; ps2_data <= 1; #100 ps2_clk <= 0;
                 #10000;
             end
-        join*/
 
-        repeat (20) begin
+            begin
+                #3300 spi_sdi <= 1;
+                #100 spi_sdi <= 0;
+            end
+        join
+
+        /*repeat (20) begin
             #1
 
             uut.wr_start <= 1;
@@ -79,7 +85,7 @@ module top_tb;
             uut.wr_start <= 0;
 
             #20;
-        end
+        end*/
 
         #20000
 

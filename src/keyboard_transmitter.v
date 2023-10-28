@@ -7,7 +7,7 @@ module keyboard_transmitter (
     output spi_sdo,
     input  spi_sdi,
     output spi_sck,
-    output spi_ss,
+    output reg spi_ss = 1,
     output reg led1 = 0,
     output reg led2 = 0
 );
@@ -21,18 +21,15 @@ module keyboard_transmitter (
     wire [7:0]  char;
     wire        ps2_rx_complete;
 
-    reg [31:0]  spi_cmd = 0;
-    reg [7:0]   spi_cmd_len = 0;
-    reg [7:0]   spi_data_len = 0;
+    reg  [31:0] spi_tx_data = 0;
+    reg  [3:0]  spi_tx_len = 0;
+    wire [7:0]  spi_rx_data;
     reg         spi_start = 0;
-    wire [63:0] spi_data_out;
     wire        spi_complete;
 
     reg [7:0]   uart_tx_data = 0;
     reg         uart_tx_start = 0;
     wire        uart_tx_complete;
-
-    reg [63:0]  tx_buf;
 
     reg         break = 0;
     reg         e0 = 0;
@@ -48,17 +45,14 @@ module keyboard_transmitter (
         .rx_complete(ps2_rx_complete)
     );
 
-    spi_flash mod_spi_flash (
+    spi spi_mod (
         .clk100(clk100),
         .mosi(spi_sdo),
         .miso(spi_sdi),
         .sck(spi_sck),
-        .cs(spi_ss),
-        .cmd(spi_cmd),
-        .cmd_len(spi_cmd_len),
-        .data_len(spi_data_len),
+        .tx_data(spi_tx_data[31:24]),
+        .rx_data(spi_rx_data),
         .start(spi_start),
-        .data_out(spi_data_out),
         .complete(spi_complete)
     );
 
@@ -72,14 +66,12 @@ module keyboard_transmitter (
 
     wire [23:0] scancode_table_offset;
     assign scancode_table_offset = (
-        32'h00008000
-        | (e0 ? 5 * 8 * 8'h80
+        e0 ? 5 * 8 * 8'h80
             : ctrl ? 4 * 8 * 8'h80
             : (altgr && shift) ? 3 * 8 * 8'h80
             : altgr ? 2 * 8 * 8'h80
             : shift ? 1 * 8 * 8'h80
             : 0
-        )
     );
 
     always @(posedge clk100) begin
@@ -90,10 +82,10 @@ module keyboard_transmitter (
         led2 <= e0;
 
         if (startup) begin
-            spi_cmd <= 32'hab000000;
-            spi_cmd_len <= 8;
-            spi_data_len <= 0;
+            spi_tx_data <= 32'hab000000;
+            spi_tx_len <= 1;
             spi_start <= 1;
+            spi_ss <= 0;
         end
 
         if (ps2_rx_complete) begin
@@ -107,9 +99,9 @@ module keyboard_transmitter (
                     KEY_LCTRL: ctrl <= !break;
                     KEY_ALT: if (e0) altgr <= !break;
                     default: if (!break) begin
-                        spi_cmd <= 32'h03008000 | scancode_table_offset | (char << 3);
-                        spi_cmd_len <= 32;
-                        spi_data_len <= 64;
+                        spi_tx_data <= 32'h03008000 | scancode_table_offset | (char << 3);
+                        spi_tx_len = 4;
+                        spi_ss <= 0;
                         spi_start <= 1;
                     end
                 endcase
@@ -119,20 +111,24 @@ module keyboard_transmitter (
             end
         end
 
-        if (spi_complete && spi_data_out[7:0] != 8'hff) begin
-            uart_tx_data <= spi_data_out[7:0];
-            uart_tx_start <= 1;
-            tx_buf <= spi_data_out >> 8;
+        if (spi_complete) begin
+            if (spi_tx_len != 0) begin
+                spi_tx_data <= spi_tx_data << 8;
+                spi_tx_len <= spi_tx_len - 1;
+                spi_start <= 1;
+            end else if (spi_rx_data != 8'hff && spi_rx_data != 8'h00) begin
+                uart_tx_data <= spi_rx_data[7:0];
+                uart_tx_start <= 1;
+            end else
+                spi_ss <= 1;
         end
 
         if (uart_tx_complete) begin
             led1 <= !led1;
         end
 
-        if (uart_tx_complete && tx_buf[7:0] != 8'hff) begin
-            uart_tx_data <= tx_buf[7:0];
-            uart_tx_start <= 1;
-            tx_buf <= tx_buf >> 8;
+        if (uart_tx_complete) begin
+            spi_start <= 1;
         end
     end
 endmodule
