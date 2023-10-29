@@ -156,8 +156,8 @@ module top (
                     if (char == "C") begin
                         wr_col <= wr_col + 1;
                     end if (char == "H") begin
-                        wr_row <= csi_p2 - 1;
-                        wr_col <= csi_p1 - 1;
+                        wr_row <= csi_p2 == 0 ? 0 : csi_p2 - 1;
+                        wr_col <= csi_p1 == 0 ? 0 : csi_p1 - 1;
                     end else if (char == "J") begin
                         wr_begin <= 0;
                         wr_end <= 25 * 80;
